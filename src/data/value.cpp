@@ -645,10 +645,10 @@ QString PlainTextValue::text(const ValueItem &valueItem, ValueItemType &vit)
             /// place '\,' with a thin space
             result[j] = thinspace;
             ++i; ++j;
-        } else if ((!isVerbatim || i > 0) && result[i] == tilde && (i < 1 || result[i - 1] != bs))  {
+        } else if (!isVerbatim && result[i] == tilde && (i < 1 || result[i - 1] != bs))  {
             /// replace '~' with a non-breaking space,
-            /// except if text was verbatim and tilde is at beginning
-            /// (e.g. a 'localfile' value like '~/document.pdf')
+            /// except if text was verbatim (e.g. a 'localfile' value
+            /// like '~/document.pdf' or 'document.pdf~')
             result[j] = nobreakspace;
             ++j;
         } else {
