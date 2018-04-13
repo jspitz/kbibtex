@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2004-2017 by Thomas Fischer <fischer@unix-ag.uni-kl.de> *
+ *   Copyright (C) 2004-2018 by Thomas Fischer <fischer@unix-ag.uni-kl.de> *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -34,9 +34,6 @@
 
 class LyX::LyXPrivate
 {
-private:
-    // UNUSED LyX *p;
-
 public:
     QWidget *widget;
     QAction *action;
@@ -45,8 +42,9 @@ public:
     KSharedConfigPtr config;
     const KConfigGroup group;
 
-    LyXPrivate(LyX */* UNUSED parent*/, QWidget *widget)
-        : /* UNUSED p(parent),*/ action(nullptr), config(KSharedConfig::openConfig(QStringLiteral("kbibtexrc"))), group(config, LyX::configGroupName) {
+    LyXPrivate(LyX *parent, QWidget *widget)
+            : action(nullptr), config(KSharedConfig::openConfig(QStringLiteral("kbibtexrc"))), group(config, LyX::configGroupName) {
+        Q_UNUSED(parent)
         this->widget = widget;
     }
 
@@ -79,9 +77,7 @@ public:
 
 const QString LyX::keyUseAutomaticLyXPipeDetection = QStringLiteral("UseAutomaticLyXPipeDetection");
 const QString LyX::keyLyXPipePath = QStringLiteral("LyXPipePath");
-#ifdef QT_LSTAT
 const bool LyX::defaultUseAutomaticLyXPipeDetection = true;
-#endif // QT_LSTAT
 const QString LyX::defaultLyXPipePath = QString();
 const QString LyX::configGroupName = QStringLiteral("LyXPipe");
 
