@@ -92,8 +92,14 @@ public:
             fd.defaultWidth = configGroup.readEntry("DefaultWidth", 10);
             fd.defaultVisible = configGroup.readEntry("Visible", true);
 
-            for (const QString &treeViewName : treeViewNames)
-                fd.visible.insert(treeViewName, configGroup.readEntry("Visible_" + treeViewName,  fd.defaultVisible));
+            fd.visible.clear();
+            if (configGroup.exists()) {
+                for (const QString &key : configGroup.keyList()) {
+                    if (!key.startsWith(QStringLiteral("Visible_"))) continue; ///< a key other than a 'visibility' key
+                    const QString treeViewName = key.mid(8);
+                    fd.visible.insert(treeViewName, configGroup.readEntry(key, fd.defaultVisible));
+                }
+            }
 
             QString typeFlags = configGroup.readEntry("TypeFlags", "Source");
             fd.typeFlags = typeFlagsFromString(typeFlags);

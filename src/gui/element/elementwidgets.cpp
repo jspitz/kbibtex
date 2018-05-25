@@ -60,8 +60,8 @@ static const char *PropertyIdSuggestion = "PropertyIdSuggestion";
 ElementWidget::ElementWidget(QWidget *parent)
         : QWidget(parent), isReadOnly(false), m_file(nullptr), m_isModified(false)
 {
-    // nothing
-};
+    /// nothing
+}
 
 bool ElementWidget::isModified() const
 {
@@ -82,20 +82,19 @@ void ElementWidget::gotModified()
 
 
 EntryConfiguredWidget::EntryConfiguredWidget(const QSharedPointer<const EntryTabLayout> &entryTabLayout, QWidget *parent)
-        : ElementWidget(parent), etl(entryTabLayout)
+        : ElementWidget(parent), fieldInputCount(entryTabLayout->singleFieldLayouts.size()), numCols(entryTabLayout->columns), etl(entryTabLayout)
 {
     gridLayout = new QGridLayout(this);
+
+    /// Initialize list of field input widgets plus labels
+    listOfLabeledFieldInput = new LabeledFieldInput*[fieldInputCount];
+
     createGUI();
 }
 
 EntryConfiguredWidget::~EntryConfiguredWidget()
 {
-    for (int i = fieldInputCount - 1; i >= 0; --i) {
-        delete listOfLabeledFieldInput[i]->fieldInput;
-        delete listOfLabeledFieldInput[i]->label;
-    }
     delete[] listOfLabeledFieldInput;
-    delete gridLayout;
 }
 
 bool EntryConfiguredWidget::apply(QSharedPointer<Element> element) const
@@ -190,12 +189,6 @@ bool EntryConfiguredWidget::canEdit(const Element *element)
 void EntryConfiguredWidget::createGUI()
 {
     const BibTeXFields *bf = BibTeXFields::self();
-
-    /// store information on number of widgets and columns in class variable
-    fieldInputCount = etl->singleFieldLayouts.size();
-    numCols = etl->columns;
-    /// initialize list of field input widgets plus labels
-    listOfLabeledFieldInput = new LabeledFieldInput*[fieldInputCount];
 
     int i = 0;
     for (const SingleFieldLayout &sfl : const_cast<const QList<SingleFieldLayout> &>(etl->singleFieldLayouts)) {

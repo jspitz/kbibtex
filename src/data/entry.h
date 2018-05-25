@@ -133,6 +133,9 @@ public:
 
     ~Entry() override;
 
+    bool operator==(const Entry &other) const;
+    bool operator!=(const Entry &other) const;
+
     /**
      * Assignment operator, working similar to a copy constructor,
      * but overwrites the current object's values.
@@ -214,6 +217,9 @@ private:
     class EntryPrivate;
     EntryPrivate *const d;
 };
+
+Q_DECLARE_METATYPE(Entry)
+Q_DECLARE_METATYPE(Entry *)
 
 QDebug operator<<(QDebug dbg, const Entry &Entry);
 
