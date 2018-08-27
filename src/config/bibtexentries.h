@@ -88,7 +88,7 @@ public:
     QMap<QString, QString> xmappings(const QString &name) const;
 
 protected:
-    BibTeXEntries();
+    explicit BibTeXEntries();
     void load();
 
 private:
