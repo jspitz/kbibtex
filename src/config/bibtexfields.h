@@ -74,7 +74,7 @@ public:
     const FieldDescription find(const QString &name) const;
 
 private:
-    BibTeXFields();
+    explicit BibTeXFields();
 
     class BibTeXFieldsPrivate;
     BibTeXFieldsPrivate *d;
