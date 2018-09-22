@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2004-2017 by Thomas Fischer <fischer@unix-ag.uni-kl.de> *
+ *   Copyright (C) 2004-2018 by Thomas Fischer <fischer@unix-ag.uni-kl.de> *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -15,68 +15,47 @@
  *   along with this program; if not, see <https://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
-#include "preamble.h"
+#include <QtTest>
 
-#include <typeinfo>
+#include "entry.h"
 
-#include <QDebug>
-#include <QStringList>
-
-/**
- * Private class to store internal variables that should not be visible
- * in the interface as defined in the header file.
- */
-class Preamble::PreamblePrivate
+class KBibTeXDataTest : public QObject
 {
-public:
-    Value value;
+    Q_OBJECT
+
+private slots:
+    void initTestCase();
+
+    /**
+     * This test is not designed to fail under regular circumstances.
+     * Instead, this test should be run with 'valgrind' to observe any
+     * irregularities in memory management or access.
+     */
+    void createAndRemoveValueFromEntries();
+
+private:
 };
 
-Preamble::Preamble(const Value &value)
-        : Element(), d(new Preamble::PreamblePrivate)
+
+void KBibTeXDataTest::createAndRemoveValueFromEntries()
 {
-    d->value = value;
+    static const QString keyData[] = {Entry::ftAuthor, Entry::ftISBN};
+
+    Entry entry;
+    for (const QString &key : keyData) {
+        for (int i = 0; i < 2; ++i) {
+            entry.remove(key);
+            Value v;
+            entry.insert(key, v);
+        }
+    }
 }
 
-Preamble::Preamble(const Preamble &other)
-        : Element(), d(new Preamble::PreamblePrivate)
+void KBibTeXDataTest::initTestCase()
 {
-    operator=(other);
+    // TODO
 }
 
-Preamble::~Preamble()
-{
-    delete d;
-}
+QTEST_MAIN(KBibTeXDataTest)
 
-Preamble &Preamble::operator= (const Preamble &other)
-{
-    if (this != &other)
-        d->value = other.d->value;
-    return *this;
-}
-
-Value &Preamble::value()
-{
-    return d->value;
-}
-
-const Value &Preamble::value() const
-{
-    return d->value;
-}
-
-void Preamble::setValue(const Value &value)
-{
-    d->value = value;
-
-}
-
-bool Preamble::isPreamble(const Element &other) {
-    return typeid(other) == typeid(Preamble);
-}
-
-QDebug operator<<(QDebug dbg, const Preamble &preamble) {
-    dbg.nospace() << "Preamble: " << preamble.value();
-    return dbg;
-}
+#include "kbibtexdatatest.moc"

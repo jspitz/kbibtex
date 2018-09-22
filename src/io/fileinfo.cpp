@@ -23,7 +23,8 @@
 #include <QDir>
 #include <QTextStream>
 #include <QStandardPaths>
-#include <QtConcurrent/QtConcurrent>
+#include <QRegularExpression>
+#include <QtConcurrentRun>
 
 #include <KSharedConfig>
 #include <KConfigGroup>
@@ -149,11 +150,11 @@ void FileInfo::urlsInText(const QString &text, const TestExistence testExistence
                     continue;
                 }
             } else if (!baseDirectory.isEmpty() &&
-                    // TODO the following test assumes that absolute paths start
-                    // with a dir separator, which may only be true on Unix/Linux,
-                    // but not Windows. May be a test for 'first character is a letter,
-                    // second is ":", third is "\"' may be necessary.
-                    !internalText.startsWith(QDir::separator())) {
+                       // TODO the following test assumes that absolute paths start
+                       // with a dir separator, which may only be true on Unix/Linux,
+                       // but not Windows. May be a test for 'first character is a letter,
+                       // second is ":", third is "\"' may be necessary.
+                       !internalText.startsWith(QDir::separator())) {
                 /// To get the absolute path, prepend filename fragment with base directory
                 const QString fullFilename = baseDirectory + QDir::separator() + internalText;
                 const QFileInfo fileInfo(fullFilename);
@@ -265,7 +266,7 @@ QSet<QUrl> FileInfo::entryUrls(const QSharedPointer<const Entry> &entry, const Q
             QString plainText = PlainTextValue::text(*valueItem);
 
             static const QRegularExpression regExpEscapedChars = QRegularExpression(QStringLiteral("\\\\+([&_~])"));
-            plainText.replace(regExpEscapedChars,QStringLiteral("\\1"));
+            plainText.replace(regExpEscapedChars, QStringLiteral("\\1"));
 
             urlsInText(plainText, testExistence, baseDirectory, result);
         }
@@ -321,8 +322,7 @@ QString FileInfo::pdfToText(const QString &pdfFilename)
         /// Load text from cache file
         QFile f(textFilename);
         if (f.open(QFile::ReadOnly)) {
-            QTextStream ts(&f);
-            const QString text = ts.readAll();
+            const QString text = QString::fromUtf8(f.readAll());
             f.close();
             return text;
         }
@@ -357,14 +357,16 @@ void FileInfo::extractPDFTextToCache(const QString &pdfFilename, const QString &
     QFile f(cacheFilename);
     if (f.open(QFile::WriteOnly)) {
         static const int maxCharacters = 1 << 18;
-        QTextStream ts(&f);
-        ts << text.left(maxCharacters); ///< keep only the first 2^18 many characters
+        f.write(text.left(maxCharacters).toUtf8()); ///< keep only the first 2^18 many characters
 
         if (text.length() > maxCharacters)
             msgList << QString(QStringLiteral("### Text too long, skipping %1 characters ###")).arg(text.length() - maxCharacters);
         /// Write all messages (warnings) to end of text file
-        for (const QString &msg : const_cast<const QStringList &>(msgList))
-            ts << endl << msg;
+        for (const QString &msg : const_cast<const QStringList &>(msgList)) {
+            static const char linebreak = '\n';
+            f.write(&linebreak, 1);
+            f.write(msg.toUtf8());
+        }
 
         f.close();
     }
