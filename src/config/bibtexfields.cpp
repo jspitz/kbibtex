@@ -159,6 +159,7 @@ public:
 #endif // HAVE_KF5
 };
 
+
 BibTeXFields *BibTeXFields::BibTeXFieldsPrivate::singleton = nullptr;
 
 BibTeXFields::BibTeXFields()
