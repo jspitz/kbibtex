@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2004-2017 by Thomas Fischer <fischer@unix-ag.uni-kl.de> *
+ *   Copyright (C) 2004-2018 by Thomas Fischer <fischer@unix-ag.uni-kl.de> *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -66,6 +66,9 @@ public:
     /// Move-assignment operator.
     File &operator= (File &&other);
 
+    bool operator== (const File &other) const;
+    bool operator!= (const File &other) const;
+
     /**
      * Check if a given key (e.g. a key for a macro or an id for an entry)
      * is contained in the file object.
@@ -115,6 +118,8 @@ private:
     class FilePrivate;
     FilePrivate *d;
 };
+
+Q_DECLARE_METATYPE(File *)
 
 QDebug operator<<(QDebug dbg, const File &file);
 
