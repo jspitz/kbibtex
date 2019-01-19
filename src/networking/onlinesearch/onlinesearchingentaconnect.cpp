@@ -30,10 +30,10 @@
 #ifdef HAVE_KF5
 #include <KLocalizedString>
 #include <KConfigGroup>
-#endif // HAVE_KF5
-#ifdef HAVE_QTWIDGETS
 #include <KLineEdit>
-#endif // HAVE_QTWIDGETS
+#else // HAVE_KF5
+#define i18n(text) QObject::tr(text)
+#endif // HAVE_KF5
 
 #include "file.h"
 #include "entry.h"
@@ -176,7 +176,7 @@ public:
 #endif // HAVE_QTWIDGETS
 
     OnlineSearchIngentaConnectPrivate(OnlineSearchIngentaConnect *)
-            : ingentaConnectBaseUrl(QStringLiteral("http://www.ingentaconnect.com/search?format=bib"))
+            : ingentaConnectBaseUrl(QStringLiteral("https://www.ingentaconnect.com/search?format=bib"))
 #ifdef HAVE_QTWIDGETS
         , form(nullptr)
 #endif // HAVE_QTWIDGETS
@@ -376,7 +376,7 @@ OnlineSearchQueryFormAbstract *OnlineSearchIngentaConnect::customWidget(QWidget 
 
 QUrl OnlineSearchIngentaConnect::homepage() const
 {
-    return QUrl(QStringLiteral("http://www.ingentaconnect.com/"));
+    return QUrl(QStringLiteral("https://www.ingentaconnect.com/"));
 }
 
 void OnlineSearchIngentaConnect::downloadDone()

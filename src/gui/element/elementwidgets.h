@@ -22,20 +22,24 @@
 
 #include <QLabel>
 #include <QWidget>
-
 #include <QUrl>
 #include <QIcon>
 
 #include "elementeditor.h"
 #include "entrylayout.h"
+#include "fileimporter.h"
 
 class QTreeWidget;
 class QTreeWidgetItem;
 class QGridLayout;
+class QPushButton;
 
 class KLineEdit;
 class KComboBox;
-class QPushButton;
+
+namespace KTextEditor {
+class Document;
+}
 
 class File;
 class Entry;
@@ -296,11 +300,10 @@ class SourceWidget : public ElementWidget
     Q_OBJECT
 
 public:
-    enum ElementClass { elementInvalid = -1, elementEntry = 0, elementMacro, elementPreamble };
+    enum ElementClass { elementInvalid = -1, elementEntry = 0, elementMacro, elementPreamble, elementComment };
 
 private:
-    class SourceWidgetTextEdit;
-    SourceWidgetTextEdit *sourceEdit;
+    KTextEditor::Document *document;
     QString originalText;
     ElementClass elementClass;
 
@@ -323,6 +326,8 @@ public:
 
 private slots:
     void reset();
+    void addMessage(const FileImporter::MessageSeverity severity, const QString &messageText);
+    void updateMessage();
 
 private:
     class Private;

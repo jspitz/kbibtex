@@ -25,6 +25,18 @@
  */
 class Preferences {
 public:
+
+	/// Bibliography system: either BibTeX or BibLaTeX
+	enum BibliographySystem { BibTeX = 0, BibLaTeX = 1 };
+	/// Default bibliography system if nothing else is set or defined
+	static const BibliographySystem defaultBibliographySystem;
+	/// Current bibliography system as read from configuration file
+	static BibliographySystem bibliographySystem();
+	/// Update bibliography system in configuration file
+	/// @return true if the set bibliography system differed from the previous value, false if both were the same
+	static bool setBibliographySystem(const BibliographySystem bibliographySystem);
+	/// Map of supported bibliography systems, should be the same as in enum BibliographySystem
+	static const QMap<BibliographySystem, QString> availableBibliographySystems();
 enum BackupScope { NoBackup, LocalOnly, BothLocalAndRemote };
 enum ElementDoubleClickAction { ActionOpenEditor = 0, ActionViewDocument = 1 };
 /**

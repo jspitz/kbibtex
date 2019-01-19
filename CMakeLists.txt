@@ -4,7 +4,7 @@ endif(POLICY CMP0048)
 
 project(
     kbibtex
-    VERSION "0.8.50"
+    VERSION "0.9.50"
 )
 
 cmake_minimum_required(
@@ -119,6 +119,8 @@ find_package(
 )
 
 find_package(KF5DocTools)
+
+find_package(KF5TextEditor NO_MODULE)
 
 ecm_setup_version(
     PROJECT

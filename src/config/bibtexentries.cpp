@@ -23,6 +23,9 @@
 #include <KLocalizedString>
 #include <KSharedConfig>
 #include <KConfigGroup>
+#else // HAVE_KF5
+#include <QObject>
+#define i18n(text) QObject::tr(text)
 #endif // HAVE_KF5
 
 #include "logging_config.h"

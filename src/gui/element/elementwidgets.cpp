@@ -37,7 +37,9 @@
 #include <KLineEdit>
 #include <KComboBox>
 #include <KRun>
-#include <KTextEdit>
+#include <KTextEditor/Document>
+#include <KTextEditor/Editor>
+#include <KTextEditor/View>
 #include <kio_version.h>
 
 #include "idsuggestions.h"
@@ -53,6 +55,7 @@
 #include "macro.h"
 #include "preamble.h"
 #include "fieldlineedit.h"
+#include "delayedexecutiontimer.h"
 #include "logging_gui.h"
 
 static const unsigned int interColumnSpace = 16;
@@ -1147,37 +1150,23 @@ void PreambleWidget::createGUI()
 }
 
 
-class SourceWidget::SourceWidgetTextEdit : public KTextEdit
-{
-    Q_OBJECT
-
-public:
-    SourceWidgetTextEdit(QWidget *parent)
-            : KTextEdit(parent) {
-        /// nothing
-    }
-
-protected:
-    void dropEvent(QDropEvent *event) override {
-        FileImporterBibTeX importer(this);
-        QScopedPointer<File> file(importer.fromString(event->mimeData()->text()));
-        if (!file.isNull() && file->count() == 1) {
-            FileExporterBibTeX exporter(this);
-            document()->setPlainText(exporter.toString(file->first(), file.data()));
-        } else
-            KTextEdit::dropEvent(event);
-    }
-};
-
 class SourceWidget::Private
 {
 public:
+    KComboBox *messages;
     QPushButton *buttonRestore;
     FileImporterBibTeX *importerBibTeX;
+    DelayedExecutionTimer *delayedExecutionTimer;
 
     Private(SourceWidget *parent)
-            : buttonRestore(nullptr), importerBibTeX(new FileImporterBibTeX(parent)) {
+            : messages(nullptr), buttonRestore(nullptr), importerBibTeX(new FileImporterBibTeX(parent)), delayedExecutionTimer(new DelayedExecutionTimer(1500, 500, parent)) {
         /// nothing
+    }
+
+    void addMessage(const FileImporter::MessageSeverity severity, const QString &messageText)
+    {
+        const QIcon icon = severity == FileImporter::SeverityInfo ? QIcon::fromTheme(QStringLiteral("dialog-information")) : (severity == FileImporter::SeverityWarning ? QIcon::fromTheme(QStringLiteral("dialog-warning")) : (severity == FileImporter::SeverityError ? QIcon::fromTheme(QStringLiteral("dialog-error")) : QIcon::fromTheme(QStringLiteral("dialog-question"))));
+        messages->addItem(icon, messageText);
     }
 };
 
@@ -1185,24 +1174,29 @@ SourceWidget::SourceWidget(QWidget *parent)
         : ElementWidget(parent), elementClass(elementInvalid), d(new SourceWidget::Private(this))
 {
     createGUI();
+
+    connect(document, &KTextEditor::Document::textChanged, d->delayedExecutionTimer, &DelayedExecutionTimer::trigger);
+    connect(document, &KTextEditor::Document::textChanged, d->messages, &KComboBox::clear);
+    connect(d->delayedExecutionTimer, &DelayedExecutionTimer::triggered, this, &SourceWidget::updateMessage);
 }
 
 SourceWidget::~SourceWidget()
 {
-    delete sourceEdit;
+    delete document;
     delete d;
 }
 
 void SourceWidget::setElementClass(ElementClass elementClass)
 {
     this->elementClass = elementClass;
+    updateMessage();
 }
 
 bool SourceWidget::apply(QSharedPointer<Element> element) const
 {
     if (isReadOnly) return false; ///< never save data if in read-only mode
 
-    const QString text = sourceEdit->document()->toPlainText();
+    const QString text = document->text();
     const QScopedPointer<const File> file(d->importerBibTeX->fromString(text));
     if (file.isNull() || file->count() != 1) return false;
 
@@ -1238,17 +1232,17 @@ bool SourceWidget::reset(QSharedPointer<const Element> element)
 {
     /// if signals are not deactivated, the "modified" signal would be emitted when
     /// resetting the widget's value
-    disconnect(sourceEdit, &SourceWidget::SourceWidgetTextEdit::textChanged, this, &SourceWidget::gotModified);
+    disconnect(document, &KTextEditor::Document::textChanged, this, &SourceWidget::gotModified);
 
     FileExporterBibTeX exporter(this);
     exporter.setEncoding(QStringLiteral("utf-8"));
     const QString exportedText = exporter.toString(element, m_file);
     if (!exportedText.isEmpty()) {
         originalText = exportedText;
-        sourceEdit->document()->setPlainText(originalText);
+        document->setText(originalText);
     }
 
-    connect(sourceEdit, &SourceWidget::SourceWidgetTextEdit::textChanged, this, &SourceWidget::gotModified);
+    connect(document, &KTextEditor::Document::textChanged, this, &SourceWidget::gotModified);
 
     return !exportedText.isEmpty();
 }
@@ -1256,11 +1250,14 @@ bool SourceWidget::reset(QSharedPointer<const Element> element)
 bool SourceWidget::validate(QWidget **widgetWithIssue, QString &message) const
 {
     message.clear();
+    d->messages->clear();
 
-    const QString text = sourceEdit->document()->toPlainText();
+    const QString text = document->text();
+    connect(d->importerBibTeX, &FileImporterBibTeX::message, this, &SourceWidget::addMessage);
     const QScopedPointer<const File> file(d->importerBibTeX->fromString(text));
+    disconnect(d->importerBibTeX, &FileImporterBibTeX::message, this, &SourceWidget::addMessage);
     if (file.isNull() || file->count() != 1) {
-        if (widgetWithIssue != nullptr) *widgetWithIssue = sourceEdit;
+        if (widgetWithIssue != nullptr) *widgetWithIssue = document->views().first(); ///< We create one view initially, so this should never fail
         message = i18n("Given source code does not parse as one single BibTeX element.");
         return false;
     }
@@ -1285,12 +1282,17 @@ bool SourceWidget::validate(QWidget **widgetWithIssue, QString &message) const
         if (!result) message = i18n("Given source code does not parse as one single BibTeX preamble.");
     }
     break;
+    // case elementComment // TODO?
     default:
+        message = QString(QStringLiteral("elementClass is unknown: %1")).arg(elementClass);
         result = false;
     }
 
     if (!result && widgetWithIssue != nullptr)
-        *widgetWithIssue = sourceEdit;
+        *widgetWithIssue = document->views().first(); ///< We create one view initially, so this should never fail
+
+    if (message.isEmpty() && d->messages->count() == 0)
+        d->addMessage(FileImporter::SeverityInfo, i18n("No issues detected"));
 
     return result;
 }
@@ -1300,7 +1302,7 @@ void SourceWidget::setReadOnly(bool isReadOnly)
     ElementWidget::setReadOnly(isReadOnly);
 
     d->buttonRestore->setEnabled(!isReadOnly);
-    sourceEdit->setReadOnly(isReadOnly);
+    document->setReadWrite(!isReadOnly);
 }
 
 QString SourceWidget::label()
@@ -1327,27 +1329,49 @@ void SourceWidget::createGUI()
     layout->setRowStretch(0, 1);
     layout->setRowStretch(1, 0);
 
-    sourceEdit = new SourceWidgetTextEdit(this);
-    layout->addWidget(sourceEdit, 0, 0, 1, 3);
-    sourceEdit->document()->setDefaultFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
-    sourceEdit->setTabStopWidth(QFontMetrics(sourceEdit->font()).averageCharWidth() * 4);
+    KTextEditor::Editor *editor = KTextEditor::Editor::instance();
+    document = editor->createDocument(this);
+    document->setHighlightingMode(QStringLiteral("BibTeX"));
+    KTextEditor::View *view = document->createView(this);
+    layout->addWidget(view, 0, 0, 1, 2);
+
+    d->messages = new KComboBox(this);
+    layout->addWidget(d->messages, 1, 0, 1, 1);
 
     d->buttonRestore = new QPushButton(QIcon::fromTheme(QStringLiteral("edit-undo")), i18n("Restore"), this);
     layout->addWidget(d->buttonRestore, 1, 1, 1, 1);
     connect(d->buttonRestore, &QPushButton::clicked, this, static_cast<void(SourceWidget::*)()>(&SourceWidget::reset));
-    connect(sourceEdit, &SourceWidget::SourceWidgetTextEdit::textChanged, this, &SourceWidget::gotModified);
+    connect(document, &KTextEditor::Document::textChanged, this, &SourceWidget::gotModified);
 }
 
 void SourceWidget::reset()
 {
     /// if signals are not deactivated, the "modified" signal would be emitted when
     /// resetting the widget's value
-    disconnect(sourceEdit, &SourceWidget::SourceWidgetTextEdit::textChanged, this, &SourceWidget::gotModified);
+    disconnect(document, &KTextEditor::Document::textChanged, this, &SourceWidget::gotModified);
 
-    sourceEdit->document()->setPlainText(originalText);
+    document->setText(originalText);
     setModified(false);
 
-    connect(sourceEdit, &SourceWidget::SourceWidgetTextEdit::textChanged, this, &SourceWidget::gotModified);
+    connect(document, &KTextEditor::Document::textChanged, this, &SourceWidget::gotModified);
+}
+
+void SourceWidget::addMessage(const FileImporter::MessageSeverity severity, const QString &messageText)
+{
+    d->addMessage(severity, messageText);
+}
+
+void SourceWidget::updateMessage()
+{
+    QString message;
+    const bool validationResult = validate(nullptr, message);
+
+    if (!message.isEmpty()) {
+        if (validationResult)
+            addMessage(FileImporter::SeverityInfo, message);
+        else
+            addMessage(FileImporter::SeverityError, message);
+    }
 }
 
 #include "elementwidgets.moc"
