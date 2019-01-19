@@ -17,7 +17,20 @@
 
 #include "preferences.h"
 
+#include <QDebug>
+
+#ifdef HAVE_KF5
 #include <KLocalizedString>
+#include <KSharedConfig>
+#include <KConfigGroup>
+#else // HAVE_KF5
+#define I18N_NOOP(text) QObject::tr(text)
+#define i18n(text) QObject::tr(text)
+#endif // HAVE_KF5
+
+#ifdef HAVE_KF5
+#include "notificationhub.h"
+#endif // HAVE_KF5
 
 const QString Preferences::groupColor = QStringLiteral("Color Labels");
 const QString Preferences::keyColorCodes = QStringLiteral("colorCodes");
@@ -50,7 +63,7 @@ const QString Preferences::keyProtectCasing = QStringLiteral("protectCasing");
 const Qt::CheckState Preferences::defaultProtectCasing = Qt::PartiallyChecked;
 const QString Preferences::keyListSeparator = QStringLiteral("ListSeparator");
 const QString Preferences::defaultListSeparator = QStringLiteral("; ");
-
+<<
 /**
  * Preferences for Data objects
  */
@@ -58,3 +71,47 @@ const QString Preferences::keyPersonNameFormatting = QStringLiteral("personNameF
 const QString Preferences::personNameFormatLastFirst = QStringLiteral("<%l><, %s><, %f>");
 const QString Preferences::personNameFormatFirstLast = QStringLiteral("<%f ><%l>< %s>");
 const QString Preferences::defaultPersonNameFormatting = personNameFormatLastFirst;
+
+const Preferences::BibliographySystem Preferences::defaultBibliographySystem = Preferences::BibTeX;
+
+Preferences::BibliographySystem Preferences::bibliographySystem()
+{
+#ifdef HAVE_KF5
+    static KSharedConfigPtr config(KSharedConfig::openConfig(QStringLiteral("kbibtexrc")));
+    static const KConfigGroup configGroup(config, QStringLiteral("General"));
+    config->reparseConfiguration();
+    const int index = configGroup.readEntry(QStringLiteral("BibliographySystem"), static_cast<int>(defaultBibliographySystem));
+    if (index != static_cast<int>(Preferences::BibTeX) && index != static_cast<int>(Preferences::BibLaTeX)) {
+        qWarning() << "Configuration file setting for Bibliography System has an invalid value, using default as fallback";
+        setBibliographySystem(defaultBibliographySystem);
+        return defaultBibliographySystem;
+    } else
+        return static_cast<Preferences::BibliographySystem>(index);
+#else // HAVE_KF5
+    return defaultBibliographySystem;
+#endif // HAVE_KF5
+}
+
+bool Preferences::setBibliographySystem(const Preferences::BibliographySystem bibliographySystem)
+{
+#ifdef HAVE_KF5
+    static KSharedConfigPtr config(KSharedConfig::openConfig(QStringLiteral("kbibtexrc")));
+    static KConfigGroup configGroup(config, QStringLiteral("General"));
+    config->reparseConfiguration();
+    const int prevIndex = configGroup.readEntry(QStringLiteral("BibliographySystem"), static_cast<int>(defaultBibliographySystem));
+    const int newIndex = static_cast<int>(bibliographySystem);
+    if (prevIndex == newIndex) return false; /// If old and new bibliography system are the same, return 'false' directly
+    configGroup.writeEntry(QStringLiteral("BibliographySystem"), newIndex);
+    config->sync();
+    NotificationHub::publishEvent(NotificationHub::EventBibliographySystemChanged);
+#else // HAVE_KF5
+    Q_UNUSED(bibliographySystem);
+#endif // HAVE_KF5
+    return true;
+}
+
+const QMap<Preferences::BibliographySystem, QString> Preferences::availableBibliographySystems()
+{
+    static const QMap<Preferences::BibliographySystem, QString> result {{Preferences::BibTeX, i18n("BibTeX")}, {Preferences::BibLaTeX, i18n("BibLaTeX")}};
+    return result;
+}

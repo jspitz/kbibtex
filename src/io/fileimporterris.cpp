@@ -34,6 +34,7 @@
 class FileImporterRIS::FileImporterRISPrivate
 {
 public:
+    FileImporterRIS *parent;
     int referenceCounter;
     bool cancelFlag;
     bool protectCasing;
@@ -45,9 +46,9 @@ public:
     RISitem;
     typedef QVector<RISitem> RISitemList;
 
-    FileImporterRISPrivate(FileImporterRIS *parent)
-            : referenceCounter(0), cancelFlag(false), protectCasing(false) {
-        Q_UNUSED(parent)
+    FileImporterRISPrivate(FileImporterRIS *_parent)
+            : parent(_parent), referenceCounter(0), cancelFlag(false), protectCasing(false) {
+        /// nothing
     }
 
     RISitemList readElement(QTextStream &textStream) {
@@ -79,6 +80,11 @@ public:
             }
 
             line = textStream.readLine();
+        }
+        if (!line.startsWith(QStringLiteral("ER  -")) && textStream.atEnd()) {
+            qCWarning(LOG_KBIBTEX_IO) << "Expected that entry that starts with 'TY' ends with 'ER' but instead met end of file";
+            /// Instead of an 'emit' ...
+            QMetaObject::invokeMethod(parent, "message", Qt::DirectConnection, QGenericReturnArgument(), Q_ARG(FileImporter::MessageSeverity, SeverityWarning), Q_ARG(QString, QStringLiteral("Expected that entry that starts with 'TY' ends with 'ER' but instead met end of file")));
         }
         if (!value.isEmpty()) {
             RISitem item;
@@ -126,11 +132,11 @@ public:
                 entry->setType(entryType);
             } else if ((*it).key == QStringLiteral("AU") || (*it).key == QStringLiteral("A1")) {
                 Person *person = splitName((*it).value);
-                if (person != NULL)
+                if (person != nullptr)
                     appendValue(entry, Entry::ftAuthor, QSharedPointer<Person>(person));
             } else if ((*it).key == QStringLiteral("ED") || (*it).key == QStringLiteral("A2")) {
                 Person *person = splitName((*it).value);
-                if (person != NULL)
+                if (person != nullptr)
                     appendValue(entry, Entry::ftEditor, QSharedPointer<Person>(person));
             } else if ((*it).key == QStringLiteral("ID")) {
                 entry->setId((*it).value);
@@ -147,8 +153,7 @@ public:
                 QString text = (*it).value;
                 const QRegularExpression splitRegExp(text.contains(QStringLiteral(";")) ? QStringLiteral("\\s*[;\\n]\\s*") : (text.contains(QStringLiteral(",")) ? QStringLiteral("\\s*[,\\n]\\s*") : QStringLiteral("\\n")));
                 QStringList newKeywords = text.split(splitRegExp, QString::SkipEmptyParts);
-                for (QStringList::Iterator it = newKeywords.begin(); it != newKeywords.end();
-                        ++it)
+                for (QStringList::Iterator it = newKeywords.begin(); it != newKeywords.end(); ++it)
                     appendValue(entry, Entry::ftKeywords, QSharedPointer<Keyword>(new Keyword(*it)));
             } else if ((*it).key == QStringLiteral("TI") || (*it).key == QStringLiteral("T1")) {
                 appendValue(entry, Entry::ftTitle, QSharedPointer<PlainText>(new PlainText(optionallyProtectCasing((*it).value))));
@@ -228,18 +233,24 @@ public:
                 Value value = entry->value(Entry::ftYear);
                 value.append(QSharedPointer<PlainText>(new PlainText(QString::number(year))));
                 entry->insert(Entry::ftYear, value);
-            } else
-                qCDebug(LOG_KBIBTEX_IO) << "invalid year: " << year;
+            } else {
+                qCWarning(LOG_KBIBTEX_IO) << "Invalid year: " << dateFragments[0];
+                /// Instead of an 'emit' ...
+                QMetaObject::invokeMethod(parent, "message", Qt::DirectConnection, QGenericReturnArgument(), Q_ARG(FileImporter::MessageSeverity, SeverityWarning), Q_ARG(QString, QString(QStringLiteral("Invalid year: '%1'")).arg(dateFragments[0])));
+            }
         }
         if (dateFragments.count() > 1) {
             bool ok;
             int month = dateFragments[1].toInt(&ok);
-            if (ok && month > 0 && month < 13) {
+            if (ok && month >= 1 && month <= 12) {
                 Value value = entry->value(Entry::ftMonth);
                 value.append(QSharedPointer<MacroKey>(new MacroKey(KBibTeX::MonthsTriple[month - 1])));
                 entry->insert(Entry::ftMonth, value);
-            } else
-                qCDebug(LOG_KBIBTEX_IO) << "invalid month: " << month;
+            } else {
+                qCWarning(LOG_KBIBTEX_IO) << "Invalid month: " << dateFragments[1];
+                /// Instead of an 'emit' ...
+                QMetaObject::invokeMethod(parent, "message", Qt::DirectConnection, QGenericReturnArgument(), Q_ARG(FileImporter::MessageSeverity, SeverityWarning), Q_ARG(QString, QString(QStringLiteral("Invalid month: '%1'")).arg(dateFragments[1])));
+            }
         }
 
         removeDuplicates(entry, Entry::ftDOI);
@@ -279,7 +290,8 @@ FileImporterRIS::~FileImporterRIS()
 File *FileImporterRIS::load(QIODevice *iodevice)
 {
     if (!iodevice->isReadable() && !iodevice->open(QIODevice::ReadOnly)) {
-        qCDebug(LOG_KBIBTEX_IO) << "Input device not readable";
+        qCWarning(LOG_KBIBTEX_IO) << "Input device not readable";
+        emit message(SeverityError, QStringLiteral("Input device not readable"));
         return nullptr;
     }
 
