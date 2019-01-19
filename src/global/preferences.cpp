@@ -63,7 +63,7 @@ const QString Preferences::keyProtectCasing = QStringLiteral("protectCasing");
 const Qt::CheckState Preferences::defaultProtectCasing = Qt::PartiallyChecked;
 const QString Preferences::keyListSeparator = QStringLiteral("ListSeparator");
 const QString Preferences::defaultListSeparator = QStringLiteral("; ");
-<<
+
 /**
  * Preferences for Data objects
  */
@@ -103,7 +103,7 @@ bool Preferences::setBibliographySystem(const Preferences::BibliographySystem bi
     if (prevIndex == newIndex) return false; /// If old and new bibliography system are the same, return 'false' directly
     configGroup.writeEntry(QStringLiteral("BibliographySystem"), newIndex);
     config->sync();
-    NotificationHub::publishEvent(NotificationHub::EventBibliographySystemChanged);
+//    NotificationHub::publishEvent(NotificationHub::EventBibliographySystemChanged);
 #else // HAVE_KF5
     Q_UNUSED(bibliographySystem);
 #endif // HAVE_KF5

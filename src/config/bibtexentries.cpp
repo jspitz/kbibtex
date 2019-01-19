@@ -126,6 +126,8 @@ public:
 #endif // HAVE_KF5
 };
 
+BibTeXEntries *BibTeXEntries::BibTeXEntriesPrivate::singleton = nullptr;
+
 
 BibTeXEntries::BibTeXEntries()
         : QVector<EntryDescription>(), d(new BibTeXEntriesPrivate(this))
